@@ -497,8 +497,24 @@
 
             // 地図の初期化（Google Maps APIが読み込まれたら）
             useEffect(() => {
-                if (window.google && activeTab === 'map') {
-                    initMap();
+                if (activeTab === 'map') {
+                    // Google Maps APIがまだ読み込まれていない場合は読み込む
+                    if (!window.google) {
+                        // Cloudflare Workers経由でAPIを読み込む
+                        if (typeof loadGoogleMaps === 'function') {
+                            loadGoogleMaps();
+                            // APIが読み込まれるまで待機
+                            const checkGoogle = setInterval(() => {
+                                if (window.google) {
+                                    clearInterval(checkGoogle);
+                                    initMap();
+                                }
+                            }, 100);
+                            return () => clearInterval(checkGoogle);
+                        }
+                    } else {
+                        initMap();
+                    }
                 }
             }, [activeTab, filteredFacilities]);
 
@@ -787,20 +803,30 @@
             );
         }
 
-        ReactDOM.render(<App />, document.getElementById('root'));
+        // Cloudflare WorkersのURL
+        const WORKER_URL = 'https://tattoo-bath-maps-proxy.hiyume-2.workers.dev';
 
-        // Google Maps APIを動的に読み込む関数（必要に応じて使用）
-        const loadGoogleMaps = (apiKey) => {
+        // Cloudflare Workers経由でGoogle Maps APIを読み込む関数
+        // APIキーはサーバー側で管理されるため、クライアントには公開されない
+        const loadGoogleMaps = () => {
             if (window.google) return; // 既に読み込まれている場合はスキップ
             
+            if (WORKER_URL === 'YOUR_WORKER_URL') {
+                console.warn('Cloudflare Workers URLが設定されていません。WORKER_URLを設定してください。');
+                return;
+            }
+            
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap&libraries=places`;
+            script.src = `${WORKER_URL}?callback=initMap&libraries=places`;
             script.async = true;
             script.defer = true;
+            script.onerror = () => {
+                console.error('Google Maps APIの読み込みに失敗しました。Cloudflare Workersの設定を確認してください。');
+            };
             document.head.appendChild(script);
         };
 
-        // Google Maps APIのコールバック（APIキーが設定されている場合）
+        // Google Maps APIのコールバック
         window.initMap = () => {
             // アプリが既にレンダリングされている場合は、地図を再初期化
             if (document.getElementById('map')) {
@@ -812,8 +838,7 @@
             }
         };
 
-        // APIキーを設定する場合は、以下のコメントを外して使用してください
-        // loadGoogleMaps('YOUR_API_KEY');
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 

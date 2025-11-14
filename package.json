@@ -1,0 +1,17 @@
+{
+  "name": "tattoo-bath-app",
+  "version": "1.0.0",
+  "description": "刺青OKの入浴施設を探せるアプリ",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "keywords": ["tattoo", "bath", "onsen", "maps"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
+
+
