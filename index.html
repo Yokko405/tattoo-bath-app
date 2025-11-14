@@ -501,8 +501,10 @@
                     // Google Maps APIがまだ読み込まれていない場合は読み込む
                     if (!window.google) {
                         // Cloudflare Workers経由でAPIを読み込む
-                        if (typeof loadGoogleMaps === 'function') {
-                            loadGoogleMaps();
+                        if (typeof window.loadGoogleMaps === 'function') {
+                            window.loadGoogleMaps();
+                        } else {
+                            console.error('loadGoogleMaps function not found');
                         }
                     } else {
                         // 既に読み込まれている場合はすぐに初期化
@@ -735,14 +737,7 @@
                     {/* 地図タブ */}
                     {activeTab === 'map' && (
                         <div className="map-container">
-                            {window.google ? (
-                                <div id="map" style={{ width: '100%', height: '100%' }}></div>
-                            ) : (
-                                <div className="map-placeholder">
-                                    Google Maps APIキーを設定してください<br/>
-                                    (現在はサンプルデータのみ表示されます)
-                                </div>
-                            )}
+                            <div id="map" style={{ width: '100%', height: '100%' }}></div>
                         </div>
                     )}
 
@@ -821,7 +816,7 @@
 
         // Cloudflare Workers経由でGoogle Maps APIを読み込む関数
         // APIキーはサーバー側で管理されるため、クライアントには公開されない
-        const loadGoogleMaps = () => {
+        window.loadGoogleMaps = () => {
             if (window.google) return; // 既に読み込まれている場合はスキップ
             
             if (WORKER_URL === 'YOUR_WORKER_URL') {
@@ -829,12 +824,16 @@
                 return;
             }
             
+            console.log('Loading Google Maps API via Cloudflare Workers...');
             const script = document.createElement('script');
             script.src = `${WORKER_URL}?callback=initMap&libraries=places`;
             script.async = true;
             script.defer = true;
             script.onerror = () => {
                 console.error('Google Maps APIの読み込みに失敗しました。Cloudflare Workersの設定を確認してください。');
+            };
+            script.onload = () => {
+                console.log('Google Maps API script loaded');
             };
             document.head.appendChild(script);
         };
