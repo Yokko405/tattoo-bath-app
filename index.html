@@ -503,20 +503,33 @@
                         // Cloudflare Workers経由でAPIを読み込む
                         if (typeof loadGoogleMaps === 'function') {
                             loadGoogleMaps();
-                            // APIが読み込まれるまで待機
-                            const checkGoogle = setInterval(() => {
-                                if (window.google) {
-                                    clearInterval(checkGoogle);
-                                    initMap();
-                                }
-                            }, 100);
-                            return () => clearInterval(checkGoogle);
                         }
                     } else {
-                        initMap();
+                        // 既に読み込まれている場合はすぐに初期化
+                        setTimeout(() => initMap(), 100);
                     }
                 }
             }, [activeTab, filteredFacilities]);
+
+            // Google Maps APIが読み込まれたときのイベントリスナー
+            useEffect(() => {
+                const handleGoogleMapsLoaded = () => {
+                    if (activeTab === 'map') {
+                        setTimeout(() => initMap(), 100);
+                    }
+                };
+                
+                window.addEventListener('googleMapsLoaded', handleGoogleMapsLoaded);
+                
+                // 既に読み込まれている場合
+                if (window.google) {
+                    handleGoogleMapsLoaded();
+                }
+                
+                return () => {
+                    window.removeEventListener('googleMapsLoaded', handleGoogleMapsLoaded);
+                };
+            }, [activeTab]);
 
             // モーダル内の地図初期化
             useEffect(() => {
@@ -827,15 +840,13 @@
         };
 
         // Google Maps APIのコールバック
+        // APIが読み込まれたときに呼ばれる
         window.initMap = () => {
-            // アプリが既にレンダリングされている場合は、地図を再初期化
-            if (document.getElementById('map')) {
-                // 地図タブがアクティブな場合のみ初期化
-                const mapTab = document.querySelector('.tab.active');
-                if (mapTab && mapTab.textContent.includes('地図')) {
-                    // アプリコンポーネント内で処理される
-                }
-            }
+            // 地図が読み込まれたことを示すフラグを設定
+            window.googleMapsLoaded = true;
+            
+            // カスタムイベントを発火して、Reactコンポーネントに通知
+            window.dispatchEvent(new Event('googleMapsLoaded'));
         };
 
         ReactDOM.render(<App />, document.getElementById('root'));
