@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4a90e2" />
+    <meta name="description" content="刺青OKの入浴施設を探せるアプリ" />
+    
+    <title>刺青OK 入浴施設検索 🛁</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Google Maps APIは動的に読み込む（APIキーが必要な場合は設定してください） -->
+    <!-- 使用する場合は、以下のコメントを外してYOUR_API_KEYを実際のキーに置き換えてください -->
+    <!-- <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap&libraries=places"></script> -->
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        #root {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: white;
+            box-shadow: 0 0 40px rgba(74, 144, 226, 0.1);
+        }
+
+        /* ヘッダー */
+        .header {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(74, 144, 226, 0.3);
+        }
+
+        .header h1 {
+            font-size: 22px;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* 検索エリア */
+        .search-area {
+            padding: 20px;
+            background: #f5f5f5;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: #4a90e2;
+        }
+
+        .search-button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
+            transition: transform 0.2s;
+        }
+
+        .search-button:active {
+            transform: scale(0.95);
+        }
+
+        .filter-section {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-button {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #4a90e2;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #4a90e2;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-button.active {
+            background: #4a90e2;
+            color: white;
+        }
+
+        /* タブ */
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #999;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #4a90e2;
+            background: white;
+            border-bottom: 3px solid #4a90e2;
+        }
+
+        /* 施設リスト */
+        .facilities-list {
+            padding: 20px;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        .facility-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .facility-card:active {
+            transform: scale(0.98);
+        }
+
+        .facility-card:hover {
+            border-color: #4a90e2;
+            box-shadow: 0 6px 20px rgba(74, 144, 226, 0.2);
+        }
+
+        .facility-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .facility-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .tattoo-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .facility-info {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .facility-info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .facility-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .tag {
+            padding: 4px 10px;
+            background: #e3f2fd;
+            color: #4a90e2;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        /* 地図エリア */
+        .map-container {
+            width: 100%;
+            height: 400px;
+            background: #e0e0e0;
+            position: relative;
+        }
+
+        .map-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 14px;
+            background: #f5f5f5;
+        }
+
+        /* 施設詳細モーダル */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f5f5f5;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+
+        .modal-close:hover {
+            background: #e0e0e0;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding-right: 40px;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #4a90e2;
+            margin-bottom: 8px;
+        }
+
+        .modal-section-content {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .modal-map {
+            width: 100%;
+            height: 200px;
+            border-radius: 10px;
+            margin-top: 10px;
+            background: #f5f5f5;
+        }
+
+        /* 空の状態 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+        }
+
+        /* ローディング */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        /* フッター */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // サンプル施設データ（実際のアプリではAPIから取得）
+        const sampleFacilities = [
+            {
+                id: 1,
+                name: "スパ・ラクーア",
+                address: "東京都新宿区新宿3-1-1",
+                prefecture: "東京都",
+                area: "新宿区",
+                phone: "03-1234-5678",
+                hours: "10:00 - 23:00",
+                price: "大人 2,500円",
+                tattooOk: true,
+                description: "都心のオアシス。刺青OKで、リラックスできる空間です。",
+                tags: ["刺青OK", "サウナ", "露天風呂"],
+                lat: 35.6938,
+                lng: 139.7034
+            },
+            {
+                id: 2,
+                name: "天然温泉 湯楽",
+                address: "東京都渋谷区渋谷1-2-3",
+                prefecture: "東京都",
+                area: "渋谷区",
+                phone: "03-2345-6789",
+                hours: "11:00 - 24:00",
+                price: "大人 1,800円",
+                tattooOk: true,
+                description: "天然温泉が楽しめる施設。刺青の方も安心してご利用いただけます。",
+                tags: ["刺青OK", "天然温泉", "24時間営業"],
+                lat: 35.6580,
+                lng: 139.7016
+            },
+            {
+                id: 3,
+                name: "健康ランド ゆったり",
+                address: "神奈川県横浜市港北区新横浜1-1-1",
+                prefecture: "神奈川県",
+                area: "横浜市",
+                phone: "045-1234-5678",
+                hours: "9:00 - 22:00",
+                price: "大人 2,000円",
+                tattooOk: true,
+                description: "広々とした空間でゆっくりと。刺青OKです。",
+                tags: ["刺青OK", "広い", "家族連れOK"],
+                lat: 35.5067,
+                lng: 139.6167
+            },
+            {
+                id: 4,
+                name: "スーパー銭湯 湯の里",
+                address: "大阪府大阪市北区梅田1-1-1",
+                prefecture: "大阪府",
+                area: "大阪市",
+                phone: "06-1234-5678",
+                hours: "10:00 - 25:00",
+                price: "大人 1,500円",
+                tattooOk: true,
+                description: "関西の名湯。刺青OKで、多くの方に愛されています。",
+                tags: ["刺青OK", "サウナ", "食事処あり"],
+                lat: 34.7024,
+                lng: 135.4959
+            },
+            {
+                id: 5,
+                name: "温泉リゾート やすらぎ",
+                address: "愛知県名古屋市中区錦1-1-1",
+                prefecture: "愛知県",
+                area: "名古屋市",
+                phone: "052-1234-5678",
+                hours: "10:00 - 23:00",
+                price: "大人 2,200円",
+                tattooOk: true,
+                description: "名古屋の中心地で楽しめる温泉施設。刺青OKです。",
+                tags: ["刺青OK", "温泉", "リラクゼーション"],
+                lat: 35.1706,
+                lng: 136.8816
+            }
+        ];
+
+        // 都道府県リスト
+        const prefectures = [
+            "全国", "東京都", "神奈川県", "大阪府", "愛知県", "埼玉県", 
+            "千葉県", "兵庫県", "福岡県", "北海道", "宮城県", "京都府"
+        ];
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('list');
+            const [facilities, setFacilities] = useState(sampleFacilities);
+            const [filteredFacilities, setFilteredFacilities] = useState(sampleFacilities);
+            const [searchQuery, setSearchQuery] = useState('');
+            const [selectedPrefecture, setSelectedPrefecture] = useState('全国');
+            const [tattooOnly, setTattooOnly] = useState(true);
+            const [selectedFacility, setSelectedFacility] = useState(null);
+            const [map, setMap] = useState(null);
+            const [markers, setMarkers] = useState([]);
+
+            // 検索とフィルター処理
+            useEffect(() => {
+                let filtered = facilities;
+
+                // 刺青OKフィルター
+                if (tattooOnly) {
+                    filtered = filtered.filter(f => f.tattooOk);
+                }
+
+                // 都道府県フィルター
+                if (selectedPrefecture !== '全国') {
+                    filtered = filtered.filter(f => f.prefecture === selectedPrefecture);
+                }
+
+                // 検索クエリフィルター
+                if (searchQuery.trim()) {
+                    const query = searchQuery.toLowerCase();
+                    filtered = filtered.filter(f => 
+                        f.name.toLowerCase().includes(query) ||
+                        f.address.toLowerCase().includes(query) ||
+                        f.area.toLowerCase().includes(query) ||
+                        f.tags.some(tag => tag.toLowerCase().includes(query))
+                    );
+                }
+
+                setFilteredFacilities(filtered);
+            }, [facilities, searchQuery, selectedPrefecture, tattooOnly]);
+
+            // 地図の初期化（Google Maps APIが読み込まれたら）
+            useEffect(() => {
+                if (window.google && activeTab === 'map') {
+                    initMap();
+                }
+            }, [activeTab, filteredFacilities]);
+
+            // モーダル内の地図初期化
+            useEffect(() => {
+                if (selectedFacility && window.google) {
+                    // モーダルが表示された後に地図を初期化
+                    setTimeout(() => {
+                        const mapElement = document.getElementById('modal-map');
+                        if (mapElement) {
+                            const modalMap = new window.google.maps.Map(mapElement, {
+                                zoom: 15,
+                                center: { lat: selectedFacility.lat, lng: selectedFacility.lng }
+                            });
+
+                            new window.google.maps.Marker({
+                                position: { lat: selectedFacility.lat, lng: selectedFacility.lng },
+                                map: modalMap,
+                                title: selectedFacility.name
+                            });
+                        }
+                    }, 100);
+                }
+            }, [selectedFacility]);
+
+            const initMap = () => {
+                if (!window.google) {
+                    console.warn('Google Maps APIが読み込まれていません');
+                    return;
+                }
+
+                const mapElement = document.getElementById('map');
+                if (!mapElement) return;
+
+                const center = filteredFacilities.length > 0 
+                    ? { lat: filteredFacilities[0].lat, lng: filteredFacilities[0].lng }
+                    : { lat: 35.6812, lng: 139.7671 }; // 東京駅をデフォルト
+
+                const newMap = new window.google.maps.Map(mapElement, {
+                    zoom: filteredFacilities.length === 1 ? 15 : 10,
+                    center: center,
+                    styles: [
+                        {
+                            featureType: "poi",
+                            elementType: "labels",
+                            stylers: [{ visibility: "off" }]
+                        }
+                    ]
+                });
+
+                // 既存のマーカーをクリア
+                markers.forEach(marker => marker.setMap(null));
+
+                // 新しいマーカーを作成
+                const newMarkers = filteredFacilities.map(facility => {
+                    const marker = new window.google.maps.Marker({
+                        position: { lat: facility.lat, lng: facility.lng },
+                        map: newMap,
+                        title: facility.name,
+                        icon: {
+                            url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                        }
+                    });
+
+                    marker.addListener('click', () => {
+                        setSelectedFacility(facility);
+                    });
+
+                    return marker;
+                });
+
+                setMap(newMap);
+                setMarkers(newMarkers);
+
+                // 複数の施設がある場合は、すべてが表示されるようにズーム調整
+                if (filteredFacilities.length > 1) {
+                    const bounds = new window.google.maps.LatLngBounds();
+                    filteredFacilities.forEach(f => {
+                        bounds.extend({ lat: f.lat, lng: f.lng });
+                    });
+                    newMap.fitBounds(bounds);
+                }
+            };
+
+            // 検索実行
+            const handleSearch = () => {
+                // useEffectで自動的にフィルタリングされる
+            };
+
+            // 施設カードクリック
+            const handleFacilityClick = (facility) => {
+                setSelectedFacility(facility);
+            };
+
+            // モーダルを閉じる
+            const closeModal = () => {
+                setSelectedFacility(null);
+            };
+
+            return (
+                <div>
+                    {/* ヘッダー */}
+                    <div className="header">
+                        <h1>🛁 刺青OK 入浴施設検索</h1>
+                        <p>安心して利用できる施設を見つけよう</p>
+                    </div>
+
+                    {/* 検索エリア */}
+                    <div className="search-area">
+                        <div className="search-box">
+                            <input
+                                type="text"
+                                className="search-input"
+                                placeholder="施設名、住所、エリアで検索..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                            />
+                            <button className="search-button" onClick={handleSearch}>
+                                検索
+                            </button>
+                        </div>
+                        <div className="filter-section">
+                            <button
+                                className={`filter-button ${tattooOnly ? 'active' : ''}`}
+                                onClick={() => setTattooOnly(!tattooOnly)}
+                            >
+                                {tattooOnly ? '✓ 刺青OKのみ' : '刺青OKのみ'}
+                            </button>
+                            {prefectures.map(pref => (
+                                <button
+                                    key={pref}
+                                    className={`filter-button ${selectedPrefecture === pref ? 'active' : ''}`}
+                                    onClick={() => setSelectedPrefecture(pref)}
+                                >
+                                    {pref}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* タブ */}
+                    <div className="tabs">
+                        <button
+                            className={`tab ${activeTab === 'list' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('list')}
+                        >
+                            リスト ({filteredFacilities.length})
+                        </button>
+                        <button
+                            className={`tab ${activeTab === 'map' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('map')}
+                        >
+                            地図
+                        </button>
+                    </div>
+
+                    {/* リストタブ */}
+                    {activeTab === 'list' && (
+                        <div className="facilities-list">
+                            {filteredFacilities.length === 0 ? (
+                                <div className="empty-state">
+                                    <div className="empty-state-icon">🔍</div>
+                                    <div className="empty-state-text">
+                                        条件に合う施設が見つかりませんでした
+                                    </div>
+                                </div>
+                            ) : (
+                                filteredFacilities.map(facility => (
+                                    <div
+                                        key={facility.id}
+                                        className="facility-card"
+                                        onClick={() => handleFacilityClick(facility)}
+                                    >
+                                        <div className="facility-header">
+                                            <div>
+                                                <div className="facility-name">{facility.name}</div>
+                                                <div className="facility-info">
+                                                    <div className="facility-info-item">
+                                                        📍 {facility.address}
+                                                    </div>
+                                                    <div className="facility-info-item">
+                                                        🕐 {facility.hours}
+                                                    </div>
+                                                    <div className="facility-info-item">
+                                                        💰 {facility.price}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {facility.tattooOk && (
+                                                <span className="tattoo-badge">刺青OK</span>
+                                            )}
+                                        </div>
+                                        <div className="facility-tags">
+                                            {facility.tags.map((tag, idx) => (
+                                                <span key={idx} className="tag">{tag}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
+
+                    {/* 地図タブ */}
+                    {activeTab === 'map' && (
+                        <div className="map-container">
+                            {window.google ? (
+                                <div id="map" style={{ width: '100%', height: '100%' }}></div>
+                            ) : (
+                                <div className="map-placeholder">
+                                    Google Maps APIキーを設定してください<br/>
+                                    (現在はサンプルデータのみ表示されます)
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 施設詳細モーダル */}
+                    {selectedFacility && (
+                        <div className="modal-overlay" onClick={closeModal}>
+                            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                                <button className="modal-close" onClick={closeModal}>×</button>
+                                <div className="modal-title">
+                                    {selectedFacility.name}
+                                    {selectedFacility.tattooOk && (
+                                        <span className="tattoo-badge" style={{ marginLeft: '10px' }}>
+                                            刺青OK
+                                        </span>
+                                    )}
+                                </div>
+                                
+                                <div className="modal-section">
+                                    <div className="modal-section-title">📍 住所</div>
+                                    <div className="modal-section-content">{selectedFacility.address}</div>
+                                </div>
+
+                                <div className="modal-section">
+                                    <div className="modal-section-title">📞 電話番号</div>
+                                    <div className="modal-section-content">{selectedFacility.phone}</div>
+                                </div>
+
+                                <div className="modal-section">
+                                    <div className="modal-section-title">🕐 営業時間</div>
+                                    <div className="modal-section-content">{selectedFacility.hours}</div>
+                                </div>
+
+                                <div className="modal-section">
+                                    <div className="modal-section-title">💰 料金</div>
+                                    <div className="modal-section-content">{selectedFacility.price}</div>
+                                </div>
+
+                                <div className="modal-section">
+                                    <div className="modal-section-title">📝 説明</div>
+                                    <div className="modal-section-content">{selectedFacility.description}</div>
+                                </div>
+
+                                <div className="modal-section">
+                                    <div className="modal-section-title">🏷️ タグ</div>
+                                    <div className="facility-tags">
+                                        {selectedFacility.tags.map((tag, idx) => (
+                                            <span key={idx} className="tag">{tag}</span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {window.google && (
+                                    <div className="modal-section">
+                                        <div className="modal-section-title">🗺️ 地図</div>
+                                        <div
+                                            id="modal-map"
+                                            className="modal-map"
+                                        ></div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* フッター */}
+                    <div className="footer">
+                        刺青OKの入浴施設を安心して探せます 🛁<br/>
+                        情報は最新のものではない場合があります。事前にご確認ください。
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+
+        // Google Maps APIを動的に読み込む関数（必要に応じて使用）
+        const loadGoogleMaps = (apiKey) => {
+            if (window.google) return; // 既に読み込まれている場合はスキップ
+            
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap&libraries=places`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        };
+
+        // Google Maps APIのコールバック（APIキーが設定されている場合）
+        window.initMap = () => {
+            // アプリが既にレンダリングされている場合は、地図を再初期化
+            if (document.getElementById('map')) {
+                // 地図タブがアクティブな場合のみ初期化
+                const mapTab = document.querySelector('.tab.active');
+                if (mapTab && mapTab.textContent.includes('地図')) {
+                    // アプリコンポーネント内で処理される
+                }
+            }
+        };
+
+        // APIキーを設定する場合は、以下のコメントを外して使用してください
+        // loadGoogleMaps('YOUR_API_KEY');
+    </script>
+</body>
+
+</html>
+
