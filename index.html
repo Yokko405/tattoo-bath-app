@@ -1276,57 +1276,68 @@
             };
         }
 
-        // Google Maps APIから施設情報を取得する関数
+        // Google Maps APIから施設情報を取得する関数（Geocoding APIのみ使用、無料）
         async function fetchFacilityDetailsFromGoogle(name, address) {
             try {
-                // Places APIで施設を検索
-                const searchQuery = `${name} ${address}`;
-                const searchResponse = await fetch(`${WORKER_URL}/places/search?query=${encodeURIComponent(searchQuery)}`);
-                const searchData = await searchResponse.json();
-
-                if (searchData.results && searchData.results.length > 0) {
-                    const place = searchData.results[0];
-                    const placeId = place.place_id;
-
-                    // Place Details APIで詳細情報を取得
-                    const detailsResponse = await fetch(`${WORKER_URL}/places/details?place_id=${placeId}`);
-                    const detailsData = await detailsResponse.json();
-
-                    if (detailsData.result) {
-                        const result = detailsData.result;
-                        return {
-                            hours: formatOpeningHours(result.opening_hours),
-                            price: formatPriceLevel(result.price_level),
-                            phone: result.formatted_phone_number || null,
-                            website: result.website || null,
-                            lat: place.geometry.location.lat,
-                            lng: place.geometry.location.lng,
-                            placeId: placeId
-                        };
+                console.log(`Getting coordinates for: ${name} at ${address}`);
+                
+                // Geocoding APIで座標のみ取得（無料API）
+                // Places API（Text Search）とPlace Details APIは有料のため使用しない
+                const geocodeUrl = `${WORKER_URL}/geocode?address=${encodeURIComponent(address)}`;
+                console.log('Geocode URL:', geocodeUrl);
+                
+                const geocodeResponse = await fetch(geocodeUrl);
+                
+                if (!geocodeResponse.ok) {
+                    let errorMessage = `Geocode API error: ${geocodeResponse.status} ${geocodeResponse.statusText}`;
+                    try {
+                        const errorData = await geocodeResponse.json();
+                        console.error('Geocode API error response:', errorData);
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        } else if (errorData.details) {
+                            errorMessage = errorData.details;
+                        }
+                    } catch (e) {
+                        const errorText = await geocodeResponse.text();
+                        console.error('Error response text:', errorText);
+                        errorMessage = errorText || errorMessage;
                     }
+                    throw new Error(errorMessage);
+                }
+                
+                const geocodeData = await geocodeResponse.json();
+                console.log('Geocode response:', geocodeData);
+
+                if (geocodeData.error) {
+                    console.error('Geocode API returned error:', geocodeData.error);
+                    throw new Error(geocodeData.error);
                 }
 
-                // 検索に失敗した場合はGeocoding APIで座標のみ取得
-                const geocodeResponse = await fetch(`${WORKER_URL}/geocode?address=${encodeURIComponent(address)}`);
-                const geocodeData = await geocodeResponse.json();
+                if (geocodeData.status && geocodeData.status !== 'OK') {
+                    console.error('Geocode API status error:', geocodeData.status, geocodeData.error_message);
+                    throw new Error(geocodeData.error_message || `Geocode API error: ${geocodeData.status}`);
+                }
 
                 if (geocodeData.results && geocodeData.results.length > 0) {
                     const location = geocodeData.results[0].geometry.location;
+                    console.log(`Found coordinates: lat=${location.lat}, lng=${location.lng}`);
                     return {
-                        hours: null,
-                        price: null,
-                        phone: null,
-                        website: null,
+                        hours: null, // 営業時間は取得しない（有料APIが必要）
+                        price: null, // 料金は取得しない（有料APIが必要）
+                        phone: null, // 電話番号は取得しない（有料APIが必要）
+                        website: null, // ウェブサイトは取得しない（有料APIが必要）
                         lat: location.lat,
                         lng: location.lng,
-                        placeId: null
+                        placeId: null // Place IDは取得しない（有料APIが必要）
                     };
                 }
-            } catch (error) {
-                console.error(`Error fetching details for ${name}:`, error);
-            }
 
-            return null;
+                throw new Error('No results found');
+            } catch (error) {
+                console.error('Error fetching facility coordinates:', error);
+                throw error;
+            }
         }
 
         // 営業時間をフォーマット
@@ -1451,6 +1462,7 @@
             const [loadingGoogleData, setLoadingGoogleData] = useState(false);
             const [googleDataCache, setGoogleDataCache] = useState({}); // 取得済みデータのキャッシュ
             const [loadingStoredData, setLoadingStoredData] = useState(true); // Cloudflare KVからの読み込み中
+            const [googleDataError, setGoogleDataError] = useState(null); // Google Maps APIのエラー
 
             // 初期化時にCloudflare KVから保存済みデータを読み込む
             useEffect(() => {
@@ -1501,8 +1513,25 @@
 
                 // キャッシュにない場合はAPIから取得
                 setLoadingGoogleData(true);
+                
+                let timeoutId = null;
+                
                 try {
+                    console.log(`Fetching Google data for: ${facility.name} at ${facility.address}`);
+                    
+                    // タイムアウトを設定（15秒）
+                    timeoutId = setTimeout(() => {
+                        console.warn(`Timeout fetching Google data for ${facility.name}`);
+                        setLoadingGoogleData(false);
+                    }, 15000);
+                    
                     const googleData = await fetchFacilityDetailsFromGoogle(facility.name, facility.address);
+                    console.log('Google data received:', googleData);
+                    
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
                     
                     if (googleData) {
                         const updatedData = {
@@ -1530,28 +1559,50 @@
                             )
                         );
 
-                        // ローカルストレージに保存（データベースを充実させる）
-                        const facilityKey = facility.facilityKey || `${facility.prefecture}_${facility.name}`;
-                        const storedData = loadFacilitiesFromStorage() || {};
-                        storedData[facilityKey] = {
-                            ...storedData[facilityKey],
-                            phone: updatedData.phone || storedData[facilityKey]?.phone,
-                            hours: updatedData.hours || storedData[facilityKey]?.hours,
-                            price: updatedData.price || storedData[facilityKey]?.price,
-                            official_url: updatedData.officialUrl || storedData[facilityKey]?.official_url,
-                            lat: updatedData.lat || storedData[facilityKey]?.lat,
-                            lng: updatedData.lng || storedData[facilityKey]?.lng,
-                            place_id: updatedData.placeId || storedData[facilityKey]?.place_id,
-                            google_data_updated: new Date().toISOString()
-                        };
-                        saveFacilitiesToStorage(storedData);
+                        // selectedFacilityも更新（モーダル表示用）
+                        setSelectedFacility(prev => {
+                            if (prev && prev.id === facility.id) {
+                                return { ...prev, ...updatedData };
+                            }
+                            return prev;
+                        });
 
+                        // Cloudflare KVに保存（データベースを充実させる）
+                        try {
+                            const facilityKey = facility.facilityKey || `${facility.prefecture}_${facility.name}`;
+                            const storedData = await loadFacilitiesFromStorage() || {};
+                            storedData[facilityKey] = {
+                                ...storedData[facilityKey],
+                                phone: updatedData.phone || storedData[facilityKey]?.phone,
+                                hours: updatedData.hours || storedData[facilityKey]?.hours,
+                                price: updatedData.price || storedData[facilityKey]?.price,
+                                official_url: updatedData.officialUrl || storedData[facilityKey]?.official_url,
+                                lat: updatedData.lat || storedData[facilityKey]?.lat,
+                                lng: updatedData.lng || storedData[facilityKey]?.lng,
+                                place_id: updatedData.placeId || storedData[facilityKey]?.place_id,
+                                google_data_updated: new Date().toISOString()
+                            };
+                            await saveFacilitiesToStorage(storedData);
+                        } catch (saveError) {
+                            console.error('Error saving to storage:', saveError);
+                            // 保存エラーは無視して続行
+                        }
+
+                        setLoadingGoogleData(false);
                         return updatedData;
+                    } else {
+                        console.warn(`No Google data found for ${facility.name}`);
+                        setLoadingGoogleData(false);
+                        setGoogleDataError('施設情報が見つかりませんでした');
                     }
                 } catch (error) {
                     console.error(`Error fetching Google data for ${facility.name}:`, error);
-                } finally {
+                    console.error('Error details:', error.message);
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                    }
                     setLoadingGoogleData(false);
+                    setGoogleDataError(error.message || '情報の取得に失敗しました');
                 }
 
                 return null;
@@ -1719,26 +1770,23 @@
             // 施設カードクリック
             const handleFacilityClick = async (facility) => {
                 setSelectedFacility(facility);
+                setLoadingGoogleData(false); // リセット
                 
-                // 詳細画面を開いた時に、不足している情報があればGoogle Maps APIから取得
-                // 営業時間、料金、座標などが不足している場合のみ取得
-                const needsGoogleData = !facility.hours || !facility.price || 
-                                       !facility.placeId || 
-                                       (facility.lat === 35.6812 && facility.lng === 139.7671);
+                // 詳細画面を開いた時に、座標が不足している場合のみGeocoding APIから取得（無料）
+                // 営業時間や料金は取得しない（有料APIが必要なため）
+                const needsGoogleData = (facility.lat === 35.6812 && facility.lng === 139.7671);
                 
                 if (needsGoogleData && !googleDataCache[facility.id]) {
+                    console.log(`Fetching Google data for facility: ${facility.name}`);
                     await fetchFacilityGoogleData(facility);
-                    // 取得後、selectedFacilityも更新
-                    const updatedFacility = facilities.find(f => f.id === facility.id);
-                    if (updatedFacility) {
-                        setSelectedFacility(updatedFacility);
-                    }
                 }
             };
 
             // モーダルを閉じる
             const closeModal = () => {
                 setSelectedFacility(null);
+                setLoadingGoogleData(false);
+                setGoogleDataError(null);
             };
 
             return (
@@ -1893,8 +1941,18 @@
 
                                 {loadingGoogleData && (
                                     <div className="modal-section">
-                                        <div className="modal-section-content" style={{ textAlign: 'center', color: '#999' }}>
-                                            📡 Google Mapsから情報を取得中...
+                                        <div className="modal-section-content" style={{ textAlign: 'center', color: '#4a90e2', fontSize: '14px' }}>
+                                            📡 座標を取得中...<br/>
+                                            <span style={{ fontSize: '12px', color: '#999' }}>（最大15秒）</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {googleDataError && !loadingGoogleData && (
+                                    <div className="modal-section">
+                                        <div className="modal-section-content" style={{ textAlign: 'center', color: '#ff6b6b', fontSize: '12px', padding: '10px', background: '#fff5f5', borderRadius: '8px', marginBottom: '10px' }}>
+                                            ⚠️ {googleDataError}<br/>
+                                            <span style={{ fontSize: '11px', color: '#999' }}>ブラウザのコンソール（F12）で詳細を確認できます</span>
                                         </div>
                                     </div>
                                 )}
@@ -1916,28 +1974,28 @@
                                         <div className="modal-section-title">🕐 営業時間</div>
                                         <div className="modal-section-content">{selectedFacility.hours}</div>
                                     </div>
-                                ) : !loadingGoogleData && (
+                                ) : loadingGoogleData ? (
                                     <div className="modal-section">
                                         <div className="modal-section-title">🕐 営業時間</div>
                                         <div className="modal-section-content" style={{ color: '#999' }}>
-                                            情報取得中...
+                                            取得中...
                                         </div>
                                     </div>
-                                )}
+                                ) : null}
 
                                 {selectedFacility.price ? (
                                     <div className="modal-section">
                                         <div className="modal-section-title">💰 料金</div>
                                         <div className="modal-section-content">{selectedFacility.price}</div>
                                     </div>
-                                ) : !loadingGoogleData && (
+                                ) : loadingGoogleData ? (
                                     <div className="modal-section">
                                         <div className="modal-section-title">💰 料金</div>
                                         <div className="modal-section-content" style={{ color: '#999' }}>
-                                            情報取得中...
+                                            取得中...
                                         </div>
                                     </div>
-                                )}
+                                ) : null}
 
                                 <div className="modal-section">
                                     <div className="modal-section-title">🖋️ 刺青の条件</div>

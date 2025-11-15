@@ -142,8 +142,60 @@ export default {
       placesUrl.searchParams.set('language', 'ja');
 
       try {
+        console.log('Places API request URL:', placesUrl.toString().replace(env.GOOGLE_MAPS_API_KEY, 'API_KEY_HIDDEN'));
         const response = await fetch(placesUrl.toString());
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Places API HTTP error:', response.status, response.statusText);
+          console.error('Places API error response body:', errorText);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Places API request failed', 
+              status: response.status,
+              statusText: response.statusText,
+              details: errorText 
+            }),
+            {
+              status: response.status,
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+        }
+        
         const data = await response.json();
+        console.log('Places API response status:', data.status);
+        console.log('Places API full response:', JSON.stringify(data, null, 2));
+        
+        // Google Maps APIのエラーレスポンスをチェック
+        if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+          console.error('Places API returned error status:', data.status);
+          console.error('Places API error_message:', data.error_message);
+          console.error('Places API error_message (raw):', data.error_message);
+          console.error('Places API full response:', JSON.stringify(data, null, 2));
+          
+          // エラーメッセージをより詳細に返す
+          const errorMsg = data.error_message || `Places API error: ${data.status}`;
+          return new Response(
+            JSON.stringify({ 
+              error: errorMsg,
+              status: data.status,
+              error_message: data.error_message,
+              error_message_en: data.error_message,
+              full_response: data
+            }),
+            {
+              status: 400,
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+        }
 
         return new Response(JSON.stringify(data), {
           headers: {
@@ -153,6 +205,7 @@ export default {
           },
         });
       } catch (error) {
+        console.error('Places API fetch error:', error);
         return new Response(
           JSON.stringify({ error: 'Failed to fetch places data', details: error.message }),
           {
@@ -190,7 +243,45 @@ export default {
 
       try {
         const response = await fetch(placesUrl.toString());
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Place Details API error:', response.status, errorText);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Place Details API request failed', 
+              status: response.status,
+              details: errorText 
+            }),
+            {
+              status: response.status,
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+        }
+        
         const data = await response.json();
+        
+        // Google Maps APIのエラーレスポンスをチェック
+        if (data.status && data.status !== 'OK') {
+          console.error('Place Details API returned error status:', data.status, data.error_message);
+          return new Response(
+            JSON.stringify({ 
+              error: data.error_message || `Place Details API error: ${data.status}`,
+              status: data.status
+            }),
+            {
+              status: 400,
+              headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+        }
 
         return new Response(JSON.stringify(data), {
           headers: {
@@ -200,6 +291,7 @@ export default {
           },
         });
       } catch (error) {
+        console.error('Place Details API fetch error:', error);
         return new Response(
           JSON.stringify({ error: 'Failed to fetch place details', details: error.message }),
           {
