@@ -48,19 +48,21 @@ npm install wrangler --save-dev
 
 2. APIキーを環境変数として設定（2つのAPIキーが必要）
    
-   **フロントエンド用APIキー（HTTPリファラー制限あり）:**
+   **Backend用APIキー（Cloudflare Workers用、リファラー制限なし）:**
    ```bash
    wrangler secret put GOOGLE_MAPS_API_KEY
    ```
-   プロンプトが表示されたら、フロントエンド用のGoogle Maps APIキーを入力
+   プロンプトが表示されたら、Backend用のGoogle Maps APIキーを入力
    
-   **サーバーサイド用APIキー（制限なし）:**
+   **Frontend用APIキー（ブラウザ用、HTTPリファラー制限あり）:**
    ```bash
-   wrangler secret put GOOGLE_MAPS_SERVER_API_KEY
+   wrangler secret put GOOGLE_MAPS_FRONTEND_API_KEY
    ```
-   プロンプトが表示されたら、サーバーサイド用のGoogle Maps APIキーを入力
+   プロンプトが表示されたら、Frontend用のGoogle Maps APIキーを入力
    
-   **注意:** サーバーサイド用APIキーは、Places APIとGeocoding APIを有効化し、アプリケーションの制限を「キーを制限しない」または「IPアドレス」に設定してください。
+   **注意:** 
+   - Backend用APIキーは、Places API (New)とGeocoding APIを有効化し、アプリケーションの制限を「キーを制限しない」に設定してください。
+   - Frontend用APIキーは、Maps JavaScript APIのみを有効化し、HTTPリファラー制限で`https://yokko405.github.io/*`を登録してください。
 
 3. Workersをデプロイ
    ```bash

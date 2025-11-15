@@ -24,16 +24,12 @@ export default {
     }
 
     // Google Maps APIキーが設定されているか確認
-    // フロントエンド用（Maps JavaScript API）とサーバーサイド用（Places API, Geocoding API）で分ける
-    const frontendApiKey = env.GOOGLE_MAPS_API_KEY; // フロントエンド用（HTTPリファラー制限あり）
-    const serverApiKey = env.GOOGLE_MAPS_SERVER_API_KEY || env.GOOGLE_MAPS_API_KEY; // サーバーサイド用（制限なし）
+    // Backend用（Places API, Geocoding API）: GOOGLE_MAPS_API_KEY（リファラー制限なし）
+    // Frontend用（Maps JavaScript API）: GOOGLE_MAPS_FRONTEND_API_KEY（リファラー制限あり）
+    const backendApiKey = env.GOOGLE_MAPS_API_KEY; // Backend用（制限なし、Places API, Geocoding API用）
+    const frontendApiKey = env.GOOGLE_MAPS_FRONTEND_API_KEY || env.GOOGLE_MAPS_API_KEY; // Frontend用（リファラー制限あり、Maps JavaScript API用）
     
-    // デバッグ: APIキーの設定状況を確認
-    console.log('Frontend API key set:', !!frontendApiKey);
-    console.log('Server API key set:', !!env.GOOGLE_MAPS_SERVER_API_KEY);
-    console.log('Using server API key:', env.GOOGLE_MAPS_SERVER_API_KEY ? 'GOOGLE_MAPS_SERVER_API_KEY' : 'GOOGLE_MAPS_API_KEY (fallback)');
-    
-    if (!frontendApiKey) {
+    if (!backendApiKey) {
       return new Response(
         JSON.stringify({ error: 'Google Maps API key not configured' }),
         {
@@ -100,7 +96,7 @@ export default {
       }
 
       const geocodeUrl = new URL('https://maps.googleapis.com/maps/api/geocode/json');
-      geocodeUrl.searchParams.set('key', serverApiKey); // サーバーサイド用APIキー
+      geocodeUrl.searchParams.set('key', backendApiKey); // Backend用APIキー
       geocodeUrl.searchParams.set('address', address);
       geocodeUrl.searchParams.set('language', 'ja');
 
@@ -146,14 +142,12 @@ export default {
       }
 
       const placesUrl = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-      placesUrl.searchParams.set('key', serverApiKey); // サーバーサイド用APIキー
+      placesUrl.searchParams.set('key', backendApiKey); // Backend用APIキー
       placesUrl.searchParams.set('query', query);
       placesUrl.searchParams.set('language', 'ja');
 
       try {
-        // デバッグ: 使用しているAPIキーを確認（最初の10文字のみ表示）
-        console.log('Using server API key:', serverApiKey ? serverApiKey.substring(0, 10) + '...' : 'NOT SET');
-        console.log('Places API request URL:', placesUrl.toString().replace(serverApiKey, 'API_KEY_HIDDEN'));
+        console.log('Places API request URL:', placesUrl.toString().replace(backendApiKey, 'API_KEY_HIDDEN'));
         const response = await fetch(placesUrl.toString());
         
         if (!response.ok) {
@@ -247,7 +241,7 @@ export default {
       }
 
       const placesUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-      placesUrl.searchParams.set('key', serverApiKey); // サーバーサイド用APIキー
+      placesUrl.searchParams.set('key', backendApiKey); // Backend用APIキー
       placesUrl.searchParams.set('place_id', placeId);
       placesUrl.searchParams.set('language', 'ja');
       placesUrl.searchParams.set('fields', 'opening_hours,price_level,formatted_phone_number,website');
