@@ -1276,13 +1276,120 @@
             };
         }
 
-        // Google Maps APIから施設情報を取得する関数（Geocoding APIのみ使用、無料）
+        // Google Maps APIから施設情報を取得する関数
         async function fetchFacilityDetailsFromGoogle(name, address) {
             try {
-                console.log(`Getting coordinates for: ${name} at ${address}`);
+                console.log(`Searching for: ${name} at ${address}`);
                 
-                // Geocoding APIで座標のみ取得（無料API）
-                // Places API（Text Search）とPlace Details APIは有料のため使用しない
+                // Places APIで施設を検索
+                const searchQuery = `${name} ${address}`;
+                const searchUrl = `${WORKER_URL}/places/search?query=${encodeURIComponent(searchQuery)}`;
+                console.log('Search URL:', searchUrl);
+                
+                const searchResponse = await fetch(searchUrl);
+                
+                if (!searchResponse.ok) {
+                    let errorMessage = `Search API error: ${searchResponse.status} ${searchResponse.statusText}`;
+                    try {
+                        const errorData = await searchResponse.json();
+                        console.error('Search API error response:', errorData);
+                        if (errorData.error_message) {
+                            errorMessage = errorData.error_message;
+                        } else if (errorData.error) {
+                            errorMessage = errorData.error;
+                        } else if (errorData.details) {
+                            errorMessage = errorData.details;
+                        }
+                        // エラーの詳細情報も含める
+                        if (errorData.full_response) {
+                            console.error('Full error response:', errorData.full_response);
+                            if (errorData.full_response.error_message) {
+                                errorMessage = errorData.full_response.error_message;
+                            }
+                        }
+                        // エラーメッセージをより詳細に
+                        if (errorData.status) {
+                            errorMessage = `[${errorData.status}] ${errorMessage}`;
+                        }
+                    } catch (e) {
+                        const errorText = await searchResponse.text();
+                        console.error('Error response text:', errorText);
+                        errorMessage = errorText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                const searchData = await searchResponse.json();
+                console.log('Search response:', searchData);
+
+                if (searchData.error) {
+                    console.error('Search API returned error:', searchData.error);
+                    throw new Error(searchData.error);
+                }
+                
+                if (searchData.status && searchData.status !== 'OK' && searchData.status !== 'ZERO_RESULTS') {
+                    console.error('Search API status error:', searchData.status, searchData.error_message);
+                    throw new Error(searchData.error_message || `Places API error: ${searchData.status}`);
+                }
+
+                if (searchData.results && searchData.results.length > 0) {
+                    const place = searchData.results[0];
+                    const placeId = place.place_id;
+                    console.log(`Found place: ${place.name}, place_id: ${placeId}`);
+
+                    // Place Details APIで詳細情報を取得
+                    const detailsUrl = `${WORKER_URL}/places/details?place_id=${placeId}`;
+                    console.log('Details URL:', detailsUrl);
+                    
+                    const detailsResponse = await fetch(detailsUrl);
+                    
+                    if (!detailsResponse.ok) {
+                        let errorMessage = `Details API error: ${detailsResponse.status} ${detailsResponse.statusText}`;
+                        try {
+                            const errorData = await detailsResponse.json();
+                            console.error('Details API error response:', errorData);
+                            if (errorData.error) {
+                                errorMessage = errorData.error;
+                            } else if (errorData.details) {
+                                errorMessage = errorData.details;
+                            }
+                        } catch (e) {
+                            const errorText = await detailsResponse.text();
+                            console.error('Error response text:', errorText);
+                            errorMessage = errorText || errorMessage;
+                        }
+                        throw new Error(errorMessage);
+                    }
+                    
+                    const detailsData = await detailsResponse.json();
+                    console.log('Details response:', detailsData);
+
+                    if (detailsData.error) {
+                        console.error('Details API returned error:', detailsData.error);
+                        throw new Error(detailsData.error);
+                    }
+                    
+                    if (detailsData.status && detailsData.status !== 'OK') {
+                        console.error('Details API status error:', detailsData.status, detailsData.error_message);
+                        throw new Error(detailsData.error_message || `Place Details API error: ${detailsData.status}`);
+                    }
+
+                    if (detailsData.result) {
+                        const result = detailsData.result;
+                        return {
+                            hours: formatOpeningHours(result.opening_hours),
+                            price: formatPriceLevel(result.price_level),
+                            phone: result.formatted_phone_number || null,
+                            website: result.website || null,
+                            lat: place.geometry.location.lat,
+                            lng: place.geometry.location.lng,
+                            placeId: placeId
+                        };
+                    }
+                }
+
+                // 検索に失敗した場合はGeocoding APIで座標のみ取得
+                console.log('Places search failed, trying geocoding...');
                 const geocodeUrl = `${WORKER_URL}/geocode?address=${encodeURIComponent(address)}`;
                 console.log('Geocode URL:', geocodeUrl);
                 
@@ -1323,19 +1430,19 @@
                     const location = geocodeData.results[0].geometry.location;
                     console.log(`Found coordinates: lat=${location.lat}, lng=${location.lng}`);
                     return {
-                        hours: null, // 営業時間は取得しない（有料APIが必要）
-                        price: null, // 料金は取得しない（有料APIが必要）
-                        phone: null, // 電話番号は取得しない（有料APIが必要）
-                        website: null, // ウェブサイトは取得しない（有料APIが必要）
+                        hours: null,
+                        price: null,
+                        phone: null,
+                        website: null,
                         lat: location.lat,
                         lng: location.lng,
-                        placeId: null // Place IDは取得しない（有料APIが必要）
+                        placeId: null
                     };
                 }
 
                 throw new Error('No results found');
             } catch (error) {
-                console.error('Error fetching facility coordinates:', error);
+                console.error('Error fetching facility details:', error);
                 throw error;
             }
         }
@@ -1772,9 +1879,11 @@
                 setSelectedFacility(facility);
                 setLoadingGoogleData(false); // リセット
                 
-                // 詳細画面を開いた時に、座標が不足している場合のみGeocoding APIから取得（無料）
-                // 営業時間や料金は取得しない（有料APIが必要なため）
-                const needsGoogleData = (facility.lat === 35.6812 && facility.lng === 139.7671);
+                // 詳細画面を開いた時に、不足している情報があればGoogle Maps APIから取得
+                // 営業時間、料金、座標などが不足している場合のみ取得
+                const needsGoogleData = !facility.hours || !facility.price || 
+                                       !facility.placeId || 
+                                       (facility.lat === 35.6812 && facility.lng === 139.7671);
                 
                 if (needsGoogleData && !googleDataCache[facility.id]) {
                     console.log(`Fetching Google data for facility: ${facility.name}`);
@@ -1942,7 +2051,7 @@
                                 {loadingGoogleData && (
                                     <div className="modal-section">
                                         <div className="modal-section-content" style={{ textAlign: 'center', color: '#4a90e2', fontSize: '14px' }}>
-                                            📡 座標を取得中...<br/>
+                                            📡 Google Mapsから情報を取得中...<br/>
                                             <span style={{ fontSize: '12px', color: '#999' }}>（最大15秒）</span>
                                         </div>
                                     </div>
