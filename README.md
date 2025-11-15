@@ -46,11 +46,21 @@ npm install wrangler --save-dev
    wrangler login
    ```
 
-2. APIキーを環境変数として設定
+2. APIキーを環境変数として設定（2つのAPIキーが必要）
+   
+   **フロントエンド用APIキー（HTTPリファラー制限あり）:**
    ```bash
    wrangler secret put GOOGLE_MAPS_API_KEY
    ```
-   プロンプトが表示されたら、取得したGoogle Maps APIキーを入力
+   プロンプトが表示されたら、フロントエンド用のGoogle Maps APIキーを入力
+   
+   **サーバーサイド用APIキー（制限なし）:**
+   ```bash
+   wrangler secret put GOOGLE_MAPS_SERVER_API_KEY
+   ```
+   プロンプトが表示されたら、サーバーサイド用のGoogle Maps APIキーを入力
+   
+   **注意:** サーバーサイド用APIキーは、Places APIとGeocoding APIを有効化し、アプリケーションの制限を「キーを制限しない」または「IPアドレス」に設定してください。
 
 3. Workersをデプロイ
    ```bash

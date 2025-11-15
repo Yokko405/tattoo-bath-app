@@ -24,7 +24,11 @@ export default {
     }
 
     // Google Maps APIキーが設定されているか確認
-    if (!env.GOOGLE_MAPS_API_KEY) {
+    // フロントエンド用（Maps JavaScript API）とサーバーサイド用（Places API, Geocoding API）で分ける
+    const frontendApiKey = env.GOOGLE_MAPS_API_KEY; // フロントエンド用（HTTPリファラー制限あり）
+    const serverApiKey = env.GOOGLE_MAPS_SERVER_API_KEY || env.GOOGLE_MAPS_API_KEY; // サーバーサイド用（制限なし）
+    
+    if (!frontendApiKey) {
       return new Response(
         JSON.stringify({ error: 'Google Maps API key not configured' }),
         {
@@ -43,7 +47,7 @@ export default {
       const libraries = url.searchParams.get('libraries') || '';
       
       const mapsApiUrl = new URL('https://maps.googleapis.com/maps/api/js');
-      mapsApiUrl.searchParams.set('key', env.GOOGLE_MAPS_API_KEY);
+      mapsApiUrl.searchParams.set('key', frontendApiKey); // フロントエンド用APIキー
       mapsApiUrl.searchParams.set('callback', callback);
       if (libraries) {
         mapsApiUrl.searchParams.set('libraries', libraries);
@@ -91,7 +95,7 @@ export default {
       }
 
       const geocodeUrl = new URL('https://maps.googleapis.com/maps/api/geocode/json');
-      geocodeUrl.searchParams.set('key', env.GOOGLE_MAPS_API_KEY);
+      geocodeUrl.searchParams.set('key', serverApiKey); // サーバーサイド用APIキー
       geocodeUrl.searchParams.set('address', address);
       geocodeUrl.searchParams.set('language', 'ja');
 
@@ -137,12 +141,12 @@ export default {
       }
 
       const placesUrl = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-      placesUrl.searchParams.set('key', env.GOOGLE_MAPS_API_KEY);
+      placesUrl.searchParams.set('key', serverApiKey); // サーバーサイド用APIキー
       placesUrl.searchParams.set('query', query);
       placesUrl.searchParams.set('language', 'ja');
 
       try {
-        console.log('Places API request URL:', placesUrl.toString().replace(env.GOOGLE_MAPS_API_KEY, 'API_KEY_HIDDEN'));
+        console.log('Places API request URL:', placesUrl.toString().replace(serverApiKey, 'API_KEY_HIDDEN'));
         const response = await fetch(placesUrl.toString());
         
         if (!response.ok) {
@@ -236,7 +240,7 @@ export default {
       }
 
       const placesUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-      placesUrl.searchParams.set('key', env.GOOGLE_MAPS_API_KEY);
+      placesUrl.searchParams.set('key', serverApiKey); // サーバーサイド用APIキー
       placesUrl.searchParams.set('place_id', placeId);
       placesUrl.searchParams.set('language', 'ja');
       placesUrl.searchParams.set('fields', 'opening_hours,price_level,formatted_phone_number,website');
@@ -462,7 +466,7 @@ export default {
     const libraries = url.searchParams.get('libraries') || '';
     
     const mapsApiUrl = new URL('https://maps.googleapis.com/maps/api/js');
-    mapsApiUrl.searchParams.set('key', env.GOOGLE_MAPS_API_KEY);
+    mapsApiUrl.searchParams.set('key', frontendApiKey); // フロントエンド用APIキー
     mapsApiUrl.searchParams.set('callback', callback);
     if (libraries) {
       mapsApiUrl.searchParams.set('libraries', libraries);
