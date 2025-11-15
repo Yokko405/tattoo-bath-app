@@ -28,6 +28,11 @@ export default {
     const frontendApiKey = env.GOOGLE_MAPS_API_KEY; // フロントエンド用（HTTPリファラー制限あり）
     const serverApiKey = env.GOOGLE_MAPS_SERVER_API_KEY || env.GOOGLE_MAPS_API_KEY; // サーバーサイド用（制限なし）
     
+    // デバッグ: APIキーの設定状況を確認
+    console.log('Frontend API key set:', !!frontendApiKey);
+    console.log('Server API key set:', !!env.GOOGLE_MAPS_SERVER_API_KEY);
+    console.log('Using server API key:', env.GOOGLE_MAPS_SERVER_API_KEY ? 'GOOGLE_MAPS_SERVER_API_KEY' : 'GOOGLE_MAPS_API_KEY (fallback)');
+    
     if (!frontendApiKey) {
       return new Response(
         JSON.stringify({ error: 'Google Maps API key not configured' }),
@@ -146,6 +151,8 @@ export default {
       placesUrl.searchParams.set('language', 'ja');
 
       try {
+        // デバッグ: 使用しているAPIキーを確認（最初の10文字のみ表示）
+        console.log('Using server API key:', serverApiKey ? serverApiKey.substring(0, 10) + '...' : 'NOT SET');
         console.log('Places API request URL:', placesUrl.toString().replace(serverApiKey, 'API_KEY_HIDDEN'));
         const response = await fetch(placesUrl.toString());
         
