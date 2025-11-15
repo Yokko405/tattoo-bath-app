@@ -371,101 +371,1191 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // サンプル施設データ（実際のアプリではAPIから取得）
-        const sampleFacilities = [
-            {
-                id: 1,
-                name: "スパ・ラクーア",
-                address: "東京都新宿区新宿3-1-1",
-                prefecture: "東京都",
-                area: "新宿区",
-                phone: "03-1234-5678",
-                hours: "10:00 - 23:00",
-                price: "大人 2,500円",
-                tattooOk: true,
-                description: "都心のオアシス。刺青OKで、リラックスできる空間です。",
-                tags: ["刺青OK", "サウナ", "露天風呂"],
-                lat: 35.6938,
-                lng: 139.7034
-            },
-            {
-                id: 2,
-                name: "天然温泉 湯楽",
-                address: "東京都渋谷区渋谷1-2-3",
-                prefecture: "東京都",
-                area: "渋谷区",
-                phone: "03-2345-6789",
-                hours: "11:00 - 24:00",
-                price: "大人 1,800円",
-                tattooOk: true,
-                description: "天然温泉が楽しめる施設。刺青の方も安心してご利用いただけます。",
-                tags: ["刺青OK", "天然温泉", "24時間営業"],
-                lat: 35.6580,
-                lng: 139.7016
-            },
-            {
-                id: 3,
-                name: "健康ランド ゆったり",
-                address: "神奈川県横浜市港北区新横浜1-1-1",
-                prefecture: "神奈川県",
-                area: "横浜市",
-                phone: "045-1234-5678",
-                hours: "9:00 - 22:00",
-                price: "大人 2,000円",
-                tattooOk: true,
-                description: "広々とした空間でゆっくりと。刺青OKです。",
-                tags: ["刺青OK", "広い", "家族連れOK"],
-                lat: 35.5067,
-                lng: 139.6167
-            },
-            {
-                id: 4,
-                name: "スーパー銭湯 湯の里",
-                address: "大阪府大阪市北区梅田1-1-1",
-                prefecture: "大阪府",
-                area: "大阪市",
-                phone: "06-1234-5678",
-                hours: "10:00 - 25:00",
-                price: "大人 1,500円",
-                tattooOk: true,
-                description: "関西の名湯。刺青OKで、多くの方に愛されています。",
-                tags: ["刺青OK", "サウナ", "食事処あり"],
-                lat: 34.7024,
-                lng: 135.4959
-            },
-            {
-                id: 5,
-                name: "温泉リゾート やすらぎ",
-                address: "愛知県名古屋市中区錦1-1-1",
-                prefecture: "愛知県",
-                area: "名古屋市",
-                phone: "052-1234-5678",
-                hours: "10:00 - 23:00",
-                price: "大人 2,200円",
-                tattooOk: true,
-                description: "名古屋の中心地で楽しめる温泉施設。刺青OKです。",
-                tags: ["刺青OK", "温泉", "リラクゼーション"],
-                lat: 35.1706,
-                lng: 136.8816
-            }
+        // Cloudflare WorkersのURL
+        const WORKER_URL = 'https://tattoo-bath-maps-proxy.hiyume-2.workers.dev';
+
+        // 温浴施設データベース
+        const facilitiesDatabase = [
+          {
+            "name": "琉球温泉 波之上の湯",
+            "prefecture": "沖縄県",
+            "city": "那覇市辻2-25-1",
+            "category": "温泉",
+            "tattoo_condition": "申告書記入で利用可",
+            "phone": "050-1722-5762",
+            "official_url": "https://www.resorts.co.jp/sansuinaha",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ほったらかし温泉 あっちの湯・こっちの湯",
+            "prefecture": "山梨県",
+            "city": "山梨市",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "空庭温泉 OSAKA BAY TOWER",
+            "prefecture": "大阪府",
+            "city": "大阪市港区",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "YUMORI ONSEN HOSTEL",
+            "prefecture": "福島県",
+            "city": "福島市土湯温泉",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "成田の命泉 大和の湯",
+            "prefecture": "千葉県",
+            "city": "成田市",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "森のなかの温泉 なんぶの湯",
+            "prefecture": "山梨県",
+            "city": "南巨摩郡南部町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "THE PROLABO SAUNA",
+            "prefecture": "東京都",
+            "city": "港区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "天然温泉 泉天空の湯 羽田空港",
+            "prefecture": "東京都",
+            "city": "大田区",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "道の駅ゆ〜ぱるのじり",
+            "prefecture": "宮崎県",
+            "city": "小林市",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "奥むさし旅館",
+            "prefecture": "埼玉県",
+            "city": "飯能市",
+            "category": "ホテル",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "HOTEL CLAD",
+            "prefecture": "静岡県",
+            "city": "御殿場市",
+            "category": "ホテル",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ひらゆの森",
+            "prefecture": "岐阜県",
+            "city": "高山市奥飛騨温泉郷",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "千人風呂 金谷旅館",
+            "prefecture": "静岡県",
+            "city": "下田市蓮台寺温泉",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ラムちゃんパーク 榊原温泉 湯の瀬",
+            "prefecture": "三重県",
+            "city": "津市榊原町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "竹林庵 みずの",
+            "prefecture": "静岡県",
+            "city": "熱海市網代温泉",
+            "category": "ホテル",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ドシー五反田",
+            "prefecture": "東京都",
+            "city": "品川区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ときたまひみつきち COMORIVER",
+            "prefecture": "埼玉県",
+            "city": "比企郡ときがわ町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "レックスイン川崎",
+            "prefecture": "神奈川県",
+            "city": "川崎市川崎区",
+            "category": "ホテル",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "カプセルプラス横浜",
+            "prefecture": "神奈川県",
+            "city": "横浜市西区",
+            "category": "ホテル",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "スパ・アルプス",
+            "prefecture": "富山県",
+            "city": "富山市",
+            "category": "スーパー銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ホテルヒルトップ",
+            "prefecture": "東京都",
+            "city": "板橋区",
+            "category": "ホテル",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "SAUNALAND ASAKUSA（サウナランド浅草）",
+            "prefecture": "東京都",
+            "city": "台東区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "The Sauna",
+            "prefecture": "長野県",
+            "city": "上水内郡信濃町",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "完全貸切 秘密基地 全室温泉 美食駅近 熱海温泉ハウス",
+            "prefecture": "静岡県",
+            "city": "熱海市",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "夢の公衆浴場 五色",
+            "prefecture": "大阪府",
+            "city": "豊中市",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "七里川温泉 いろりの宿",
+            "prefecture": "千葉県",
+            "city": "君津市",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "奈良田の里温泉 女帝の湯",
+            "prefecture": "山梨県",
+            "city": "南巨摩郡早川町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "城崎温泉 一の湯",
+            "prefecture": "兵庫県",
+            "city": "豊岡市城崎町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "白馬八方温泉 おびなたの湯",
+            "prefecture": "長野県",
+            "city": "北安曇郡白馬村",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "戸越銀座温泉",
+            "prefecture": "東京都",
+            "city": "品川区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "鴻の湯",
+            "prefecture": "兵庫県",
+            "city": "豊岡市城崎町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "千年温泉",
+            "prefecture": "神奈川県",
+            "city": "川崎市高津区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "桜館",
+            "prefecture": "東京都",
+            "city": "大田区",
+            "category": "銭湯",
+            "tattoo_condition": "15:30まで入浴可",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "玉造温泉ゆ〜ゆ",
+            "prefecture": "島根県",
+            "city": "松江市玉湯町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "はすぬま温泉",
+            "prefecture": "東京都",
+            "city": "大田区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "関市板取川温泉バーデェハウス",
+            "prefecture": "岐阜県",
+            "city": "関市板取",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "西品川温泉 宮城湯",
+            "prefecture": "東京都",
+            "city": "品川区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "横浜天然温泉 くさつ",
+            "prefecture": "神奈川県",
+            "city": "横浜市南区",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "梅ヶ島新田温泉 黄金の湯",
+            "prefecture": "静岡県",
+            "city": "静岡市葵区",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "湯の郷 湯西川観光センター",
+            "prefecture": "栃木県",
+            "city": "日光市湯西川",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "瀬戸谷温泉 ゆらく",
+            "prefecture": "静岡県",
+            "city": "静岡市藤枝市",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "静岡市清水西里温泉浴場 やませみの湯",
+            "prefecture": "静岡県",
+            "city": "静岡市清水区",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "クアパレス",
+            "prefecture": "千葉県",
+            "city": "船橋市",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "地蔵湯",
+            "prefecture": "兵庫県",
+            "city": "豊岡市城崎町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "白馬八方温泉 八方の湯",
+            "prefecture": "長野県",
+            "city": "北安曇郡白馬村",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "まんだら湯",
+            "prefecture": "兵庫県",
+            "city": "豊岡市城崎町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "イーストランド",
+            "prefecture": "東京都",
+            "city": "江戸川区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "おふろや和光(和光浴場)",
+            "prefecture": "大阪府",
+            "city": "大阪市西成区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "市営口坂本温泉浴場",
+            "prefecture": "静岡県",
+            "city": "静岡市葵区",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "柳湯",
+            "prefecture": "兵庫県",
+            "city": "豊岡市城崎町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "月見湯温泉",
+            "prefecture": "東京都",
+            "city": "世田谷区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "道の駅小谷 深山の湯",
+            "prefecture": "長野県",
+            "city": "北安曇郡小谷村",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "薬湯 市原店 (旧:内房薬湯健康センター)",
+            "prefecture": "千葉県",
+            "city": "市原市",
+            "category": "スーパー銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "上之保温泉 ほほえみの湯",
+            "prefecture": "岐阜県",
+            "city": "関市洞戸小坂",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "白山湯 六条店",
+            "prefecture": "京都府",
+            "city": "京都市下京区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "多伎いちじく温泉",
+            "prefecture": "島根県",
+            "city": "出雲市多伎町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "瀬戸の湯",
+            "prefecture": "広島県",
+            "city": "広島市中区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "文の湯",
+            "prefecture": "北海道",
+            "city": "札幌市西区",
+            "category": "銭湯",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "SAUNA OOO FUKUOKA",
+            "prefecture": "福岡県",
+            "city": "福岡市博多区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "SAUNA 竹 ～take～",
+            "prefecture": "大分県",
+            "city": "大分市",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "AOU no MORI（アオウノモリ）",
+            "prefecture": "三重県",
+            "city": "三重郡菰野町",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "たなごころサウナ Oasis",
+            "prefecture": "東京都",
+            "city": "西多摩郡檜原村",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "KURA SAUNA",
+            "prefecture": "茨城県",
+            "city": "結城市",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "THE CLASS.（会員制サウナ）",
+            "prefecture": "東京都",
+            "city": "渋谷区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ぬかとゆげ",
+            "prefecture": "京都府",
+            "city": "京丹後市",
+            "category": "温泉",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "A-SAUNA",
+            "prefecture": "北海道",
+            "city": "札幌市中央区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "Re: PRIVATE SAUNA",
+            "prefecture": "千葉県",
+            "city": "船橋市",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ひとりサウナプラス",
+            "prefecture": "東京都",
+            "city": "渋谷区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "夷川餃子なかじま 団栗店 / ぎょうざ湯",
+            "prefecture": "京都府",
+            "city": "京都市東山区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "Ledian Spa 麻布十番",
+            "prefecture": "東京都",
+            "city": "港区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "サウナ発達",
+            "prefecture": "福島県",
+            "city": "南相馬市",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "ひとりサウナ ロウリューランド川崎（会員制）",
+            "prefecture": "神奈川県",
+            "city": "川崎市川崎区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "広島個室サウナ LA・SPA",
+            "prefecture": "広島県",
+            "city": "広島市中区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          },
+          {
+            "name": "sauna 海 kai",
+            "prefecture": "広島県",
+            "city": "広島市中区",
+            "category": "サウナ",
+            "tattoo_condition": "特に制限なし",
+            "phone": "N/A",
+            "official_url": "N/A",
+            "source_type": "公式",
+            "user_reported": false
+          }
         ];
 
-        // 都道府県リスト
-        const prefectures = [
-            "全国", "東京都", "神奈川県", "大阪府", "愛知県", "埼玉県", 
-            "千葉県", "兵庫県", "福岡県", "北海道", "宮城県", "京都府"
-        ];
+        // Cloudflare KVから施設データを読み込む
+        async function loadFacilitiesFromStorage() {
+            try {
+                const response = await fetch(`${WORKER_URL}/facilities/get-all`);
+                const result = await response.json();
+                if (result.success && result.data) {
+                    return result.data;
+                }
+            } catch (error) {
+                console.error('Error loading facilities from Cloudflare KV:', error);
+                // フォールバック: ローカルストレージから読み込む
+                try {
+                    const stored = localStorage.getItem('tattooBathFacilities');
+                    if (stored) {
+                        return JSON.parse(stored);
+                    }
+                } catch (localError) {
+                    console.error('Error loading facilities from local storage:', localError);
+                }
+            }
+            return null;
+        }
+
+        // Cloudflare KVに施設データを保存
+        async function saveFacilitiesToStorage(facilities) {
+            try {
+                // 各施設データを個別にKVに保存
+                const promises = Object.entries(facilities).map(async ([facilityKey, facilityData]) => {
+                    try {
+                        const response = await fetch(`${WORKER_URL}/facilities/save`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                facilityKey: facilityKey,
+                                facilityData: facilityData
+                            })
+                        });
+                        return await response.json();
+                    } catch (error) {
+                        console.error(`Error saving facility ${facilityKey}:`, error);
+                        return null;
+                    }
+                });
+                
+                await Promise.all(promises);
+                
+                // フォールバック: ローカルストレージにも保存（バックアップ）
+                try {
+                    localStorage.setItem('tattooBathFacilities', JSON.stringify(facilities));
+                } catch (localError) {
+                    console.error('Error saving to local storage:', localError);
+                }
+            } catch (error) {
+                console.error('Error saving facilities to Cloudflare KV:', error);
+                // フォールバック: ローカルストレージに保存
+                try {
+                    localStorage.setItem('tattooBathFacilities', JSON.stringify(facilities));
+                } catch (localError) {
+                    console.error('Error saving to local storage:', localError);
+                }
+            }
+        }
+
+        // 施設データをマージ（データベース + ローカルストレージ）
+        function mergeFacilityData(dbFacility, storedFacility) {
+            if (!storedFacility) return dbFacility;
+            
+            // データベースの情報を優先し、ローカルストレージの補完情報を追加
+            return {
+                ...dbFacility,
+                // Google Maps APIから取得した情報で上書き（存在する場合）
+                phone: storedFacility.phone || dbFacility.phone,
+                hours: storedFacility.hours || null,
+                price: storedFacility.price || null,
+                official_url: storedFacility.official_url || dbFacility.official_url,
+                lat: storedFacility.lat || null,
+                lng: storedFacility.lng || null,
+                place_id: storedFacility.place_id || null,
+                google_data_updated: storedFacility.google_data_updated || null
+            };
+        }
+
+        // Google Maps APIから施設情報を取得する関数
+        async function fetchFacilityDetailsFromGoogle(name, address) {
+            try {
+                // Places APIで施設を検索
+                const searchQuery = `${name} ${address}`;
+                const searchResponse = await fetch(`${WORKER_URL}/places/search?query=${encodeURIComponent(searchQuery)}`);
+                const searchData = await searchResponse.json();
+
+                if (searchData.results && searchData.results.length > 0) {
+                    const place = searchData.results[0];
+                    const placeId = place.place_id;
+
+                    // Place Details APIで詳細情報を取得
+                    const detailsResponse = await fetch(`${WORKER_URL}/places/details?place_id=${placeId}`);
+                    const detailsData = await detailsResponse.json();
+
+                    if (detailsData.result) {
+                        const result = detailsData.result;
+                        return {
+                            hours: formatOpeningHours(result.opening_hours),
+                            price: formatPriceLevel(result.price_level),
+                            phone: result.formatted_phone_number || null,
+                            website: result.website || null,
+                            lat: place.geometry.location.lat,
+                            lng: place.geometry.location.lng,
+                            placeId: placeId
+                        };
+                    }
+                }
+
+                // 検索に失敗した場合はGeocoding APIで座標のみ取得
+                const geocodeResponse = await fetch(`${WORKER_URL}/geocode?address=${encodeURIComponent(address)}`);
+                const geocodeData = await geocodeResponse.json();
+
+                if (geocodeData.results && geocodeData.results.length > 0) {
+                    const location = geocodeData.results[0].geometry.location;
+                    return {
+                        hours: null,
+                        price: null,
+                        phone: null,
+                        website: null,
+                        lat: location.lat,
+                        lng: location.lng,
+                        placeId: null
+                    };
+                }
+            } catch (error) {
+                console.error(`Error fetching details for ${name}:`, error);
+            }
+
+            return null;
+        }
+
+        // 営業時間をフォーマット
+        function formatOpeningHours(openingHours) {
+            if (!openingHours || !openingHours.weekday_text) {
+                return null;
+            }
+
+            // 今日の曜日を取得
+            const today = new Date().getDay();
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            const todayText = days[today];
+
+            // 今日の営業時間を探す
+            for (const text of openingHours.weekday_text) {
+                if (text.includes(todayText)) {
+                    return text;
+                }
+            }
+
+            // 見つからない場合は最初の行を返す
+            return openingHours.weekday_text[0];
+        }
+
+        // 料金レベルをフォーマット
+        function formatPriceLevel(priceLevel) {
+            if (priceLevel === undefined || priceLevel === null) {
+                return null;
+            }
+
+            const priceMap = {
+                0: '無料',
+                1: '￥ (安い)',
+                2: '￥￥ (普通)',
+                3: '￥￥￥ (高い)',
+                4: '￥￥￥￥ (非常に高い)'
+            };
+
+            return priceMap[priceLevel] || null;
+        }
+
+        // データベースをアプリのデータ構造に変換
+        const convertFacilityData = async (dbData) => {
+            const converted = await Promise.all(dbData.map(async (facility, index) => {
+                const address = `${facility.prefecture}${facility.city}`;
+                
+                // Google Maps APIから情報を取得（バッチ処理で遅延を避ける）
+                const googleData = await fetchFacilityDetailsFromGoogle(facility.name, address);
+                
+                return {
+                    id: index + 1,
+                    name: facility.name,
+                    address: address,
+                    prefecture: facility.prefecture,
+                    area: facility.city,
+                    phone: googleData?.phone || (facility.phone !== "N/A" ? facility.phone : null),
+                    hours: googleData?.hours || null,
+                    price: googleData?.price || null,
+                    tattooOk: facility.tattoo_condition !== "利用不可" && facility.tattoo_condition !== "",
+                    tattooCondition: facility.tattoo_condition,
+                    description: `${facility.category}施設。${facility.tattoo_condition}`,
+                    tags: [facility.category, facility.tattoo_condition !== "特に制限なし" ? facility.tattoo_condition : "刺青OK"],
+                    category: facility.category,
+                    officialUrl: facility.official_url !== "N/A" ? facility.official_url : googleData?.website || null,
+                    lat: googleData?.lat || 35.6812,
+                    lng: googleData?.lng || 139.7671,
+                    placeId: googleData?.placeId || null,
+                    loadingGoogleData: false
+                };
+            }));
+
+            return converted;
+        };
+
+        // 施設データを変換（初期化時はデータベースの情報のみ使用）
+        // Cloudflare KVから保存済みデータは非同期で読み込む
+        const initialFacilities = facilitiesDatabase.map((facility, index) => {
+            const facilityKey = `${facility.prefecture}_${facility.name}`;
+            
+            return {
+                id: index + 1,
+                name: facility.name,
+                address: `${facility.prefecture}${facility.city}`,
+                prefecture: facility.prefecture,
+                area: facility.city,
+                phone: facility.phone !== "N/A" ? facility.phone : null,
+                hours: null, // Cloudflare KVから読み込む
+                price: null, // Cloudflare KVから読み込む
+                tattooOk: facility.tattoo_condition !== "利用不可" && facility.tattoo_condition !== "",
+                tattooCondition: facility.tattoo_condition,
+                description: `${facility.category}施設。${facility.tattoo_condition}`,
+                tags: [facility.category, facility.tattoo_condition !== "特に制限なし" ? facility.tattoo_condition : "刺青OK"],
+                category: facility.category,
+                officialUrl: facility.official_url !== "N/A" ? facility.official_url : null,
+                lat: 35.6812, // Cloudflare KVから読み込む
+                lng: 139.7671, // Cloudflare KVから読み込む
+                placeId: null,
+                loadingGoogleData: false,
+                facilityKey: facilityKey // Cloudflare KV用のキー
+            };
+        });
+
+        // 都道府県リストをデータベースから自動抽出
+        const prefecturesSet = new Set(facilitiesDatabase.map(f => f.prefecture));
+        const prefectures = ["全国", ...Array.from(prefecturesSet).sort()];
+
+        // カテゴリリストを取得
+        const categoriesSet = new Set(facilitiesDatabase.map(f => f.category));
+        const categories = ["すべて", ...Array.from(categoriesSet).sort()];
 
         function App() {
             const [activeTab, setActiveTab] = useState('list');
-            const [facilities, setFacilities] = useState(sampleFacilities);
-            const [filteredFacilities, setFilteredFacilities] = useState(sampleFacilities);
+            const [facilities, setFacilities] = useState(initialFacilities);
+            const [filteredFacilities, setFilteredFacilities] = useState(initialFacilities);
             const [searchQuery, setSearchQuery] = useState('');
             const [selectedPrefecture, setSelectedPrefecture] = useState('全国');
+            const [selectedCategory, setSelectedCategory] = useState('すべて');
             const [tattooOnly, setTattooOnly] = useState(true);
             const [selectedFacility, setSelectedFacility] = useState(null);
             const [map, setMap] = useState(null);
             const [markers, setMarkers] = useState([]);
+            const [loadingGoogleData, setLoadingGoogleData] = useState(false);
+            const [googleDataCache, setGoogleDataCache] = useState({}); // 取得済みデータのキャッシュ
+            const [loadingStoredData, setLoadingStoredData] = useState(true); // Cloudflare KVからの読み込み中
+
+            // 初期化時にCloudflare KVから保存済みデータを読み込む
+            useEffect(() => {
+                const loadStoredData = async () => {
+                    try {
+                        const storedData = await loadFacilitiesFromStorage();
+                        if (storedData && Object.keys(storedData).length > 0) {
+                            // 保存済みデータを施設リストにマージ
+                            setFacilities(prevFacilities => 
+                                prevFacilities.map(facility => {
+                                    const stored = storedData[facility.facilityKey];
+                                    if (stored) {
+                                        const dbFacility = facilitiesDatabase.find(db => `${db.prefecture}_${db.name}` === facility.facilityKey);
+                                        if (dbFacility) {
+                                            const merged = mergeFacilityData(dbFacility, stored);
+                                            return {
+                                                ...facility,
+                                                hours: merged.hours || facility.hours,
+                                                price: merged.price || facility.price,
+                                                phone: merged.phone !== "N/A" ? merged.phone : facility.phone,
+                                                officialUrl: merged.official_url !== "N/A" ? merged.official_url : facility.officialUrl,
+                                                lat: merged.lat || facility.lat,
+                                                lng: merged.lng || facility.lng,
+                                                placeId: merged.place_id || facility.placeId
+                                            };
+                                        }
+                                    }
+                                    return facility;
+                                })
+                            );
+                        }
+                    } catch (error) {
+                        console.error('Error loading stored data:', error);
+                    } finally {
+                        setLoadingStoredData(false);
+                    }
+                };
+
+                loadStoredData();
+            }, []); // 初回のみ実行
+
+            // 施設の詳細情報を取得する関数（詳細画面を開いた時に呼び出す）
+            const fetchFacilityGoogleData = async (facility) => {
+                // 既に取得済みの場合はキャッシュから返す
+                if (facility.placeId && googleDataCache[facility.id]) {
+                    return googleDataCache[facility.id];
+                }
+
+                // キャッシュにない場合はAPIから取得
+                setLoadingGoogleData(true);
+                try {
+                    const googleData = await fetchFacilityDetailsFromGoogle(facility.name, facility.address);
+                    
+                    if (googleData) {
+                        const updatedData = {
+                            hours: googleData.hours || null,
+                            price: googleData.price || null,
+                            phone: googleData.phone || facility.phone,
+                            officialUrl: googleData.website || facility.officialUrl,
+                            lat: googleData.lat || facility.lat,
+                            lng: googleData.lng || facility.lng,
+                            placeId: googleData.placeId || null
+                        };
+
+                        // キャッシュに保存
+                        setGoogleDataCache(prev => ({
+                            ...prev,
+                            [facility.id]: updatedData
+                        }));
+
+                        // 施設リストも更新（地図表示用）
+                        setFacilities(prevFacilities => 
+                            prevFacilities.map(f => 
+                                f.id === facility.id 
+                                    ? { ...f, ...updatedData, loadingGoogleData: false }
+                                    : f
+                            )
+                        );
+
+                        // ローカルストレージに保存（データベースを充実させる）
+                        const facilityKey = facility.facilityKey || `${facility.prefecture}_${facility.name}`;
+                        const storedData = loadFacilitiesFromStorage() || {};
+                        storedData[facilityKey] = {
+                            ...storedData[facilityKey],
+                            phone: updatedData.phone || storedData[facilityKey]?.phone,
+                            hours: updatedData.hours || storedData[facilityKey]?.hours,
+                            price: updatedData.price || storedData[facilityKey]?.price,
+                            official_url: updatedData.officialUrl || storedData[facilityKey]?.official_url,
+                            lat: updatedData.lat || storedData[facilityKey]?.lat,
+                            lng: updatedData.lng || storedData[facilityKey]?.lng,
+                            place_id: updatedData.placeId || storedData[facilityKey]?.place_id,
+                            google_data_updated: new Date().toISOString()
+                        };
+                        saveFacilitiesToStorage(storedData);
+
+                        return updatedData;
+                    }
+                } catch (error) {
+                    console.error(`Error fetching Google data for ${facility.name}:`, error);
+                } finally {
+                    setLoadingGoogleData(false);
+                }
+
+                return null;
+            };
 
             // 検索とフィルター処理
             useEffect(() => {
@@ -481,6 +1571,11 @@
                     filtered = filtered.filter(f => f.prefecture === selectedPrefecture);
                 }
 
+                // カテゴリフィルター
+                if (selectedCategory !== 'すべて') {
+                    filtered = filtered.filter(f => f.category === selectedCategory);
+                }
+
                 // 検索クエリフィルター
                 if (searchQuery.trim()) {
                     const query = searchQuery.toLowerCase();
@@ -488,12 +1583,13 @@
                         f.name.toLowerCase().includes(query) ||
                         f.address.toLowerCase().includes(query) ||
                         f.area.toLowerCase().includes(query) ||
-                        f.tags.some(tag => tag.toLowerCase().includes(query))
+                        f.tags.some(tag => tag.toLowerCase().includes(query)) ||
+                        f.category.toLowerCase().includes(query)
                     );
                 }
 
                 setFilteredFacilities(filtered);
-            }, [facilities, searchQuery, selectedPrefecture, tattooOnly]);
+            }, [facilities, searchQuery, selectedPrefecture, selectedCategory, tattooOnly]);
 
             // 地図の初期化（Google Maps APIが読み込まれたら）
             useEffect(() => {
@@ -533,9 +1629,10 @@
                 };
             }, [activeTab]);
 
-            // モーダル内の地図初期化
+            // モーダル内の地図初期化（座標が取得済みの場合のみ）
             useEffect(() => {
-                if (selectedFacility && window.google) {
+                if (selectedFacility && window.google && selectedFacility.lat && selectedFacility.lng && 
+                    selectedFacility.lat !== 35.6812 && selectedFacility.lng !== 139.7671) {
                     // モーダルが表示された後に地図を初期化
                     setTimeout(() => {
                         const mapElement = document.getElementById('modal-map');
@@ -590,7 +1687,7 @@
                         map: newMap,
                         title: facility.name,
                         icon: {
-                            url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                            url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
                         }
                     });
 
@@ -620,8 +1717,23 @@
             };
 
             // 施設カードクリック
-            const handleFacilityClick = (facility) => {
+            const handleFacilityClick = async (facility) => {
                 setSelectedFacility(facility);
+                
+                // 詳細画面を開いた時に、不足している情報があればGoogle Maps APIから取得
+                // 営業時間、料金、座標などが不足している場合のみ取得
+                const needsGoogleData = !facility.hours || !facility.price || 
+                                       !facility.placeId || 
+                                       (facility.lat === 35.6812 && facility.lng === 139.7671);
+                
+                if (needsGoogleData && !googleDataCache[facility.id]) {
+                    await fetchFacilityGoogleData(facility);
+                    // 取得後、selectedFacilityも更新
+                    const updatedFacility = facilities.find(f => f.id === facility.id);
+                    if (updatedFacility) {
+                        setSelectedFacility(updatedFacility);
+                    }
+                }
             };
 
             // モーダルを閉じる
@@ -659,6 +1771,15 @@
                             >
                                 {tattooOnly ? '✓ 刺青OKのみ' : '刺青OKのみ'}
                             </button>
+                            {categories.map(cat => (
+                                <button
+                                    key={cat}
+                                    className={`filter-button ${selectedCategory === cat ? 'active' : ''}`}
+                                    onClick={() => setSelectedCategory(cat)}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
                             {prefectures.map(pref => (
                                 <button
                                     key={pref}
@@ -711,11 +1832,26 @@
                                                     <div className="facility-info-item">
                                                         📍 {facility.address}
                                                     </div>
+                                                    {facility.phone && (
+                                                        <div className="facility-info-item">
+                                                            📞 {facility.phone}
+                                                        </div>
+                                                    )}
                                                     <div className="facility-info-item">
-                                                        🕐 {facility.hours}
+                                                        🏷️ {facility.category}
                                                     </div>
+                                                    {facility.hours && (
+                                                        <div className="facility-info-item">
+                                                            🕐 {facility.hours}
+                                                        </div>
+                                                    )}
+                                                    {facility.price && (
+                                                        <div className="facility-info-item">
+                                                            💰 {facility.price}
+                                                        </div>
+                                                    )}
                                                     <div className="facility-info-item">
-                                                        💰 {facility.price}
+                                                        ✓ {facility.tattooCondition}
                                                     </div>
                                                 </div>
                                             </div>
@@ -754,31 +1890,75 @@
                                         </span>
                                     )}
                                 </div>
+
+                                {loadingGoogleData && (
+                                    <div className="modal-section">
+                                        <div className="modal-section-content" style={{ textAlign: 'center', color: '#999' }}>
+                                            📡 Google Mapsから情報を取得中...
+                                        </div>
+                                    </div>
+                                )}
                                 
                                 <div className="modal-section">
                                     <div className="modal-section-title">📍 住所</div>
                                     <div className="modal-section-content">{selectedFacility.address}</div>
                                 </div>
 
-                                <div className="modal-section">
-                                    <div className="modal-section-title">📞 電話番号</div>
-                                    <div className="modal-section-content">{selectedFacility.phone}</div>
-                                </div>
+                                {selectedFacility.phone && (
+                                    <div className="modal-section">
+                                        <div className="modal-section-title">📞 電話番号</div>
+                                        <div className="modal-section-content">{selectedFacility.phone}</div>
+                                    </div>
+                                )}
+
+                                {selectedFacility.hours ? (
+                                    <div className="modal-section">
+                                        <div className="modal-section-title">🕐 営業時間</div>
+                                        <div className="modal-section-content">{selectedFacility.hours}</div>
+                                    </div>
+                                ) : !loadingGoogleData && (
+                                    <div className="modal-section">
+                                        <div className="modal-section-title">🕐 営業時間</div>
+                                        <div className="modal-section-content" style={{ color: '#999' }}>
+                                            情報取得中...
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedFacility.price ? (
+                                    <div className="modal-section">
+                                        <div className="modal-section-title">💰 料金</div>
+                                        <div className="modal-section-content">{selectedFacility.price}</div>
+                                    </div>
+                                ) : !loadingGoogleData && (
+                                    <div className="modal-section">
+                                        <div className="modal-section-title">💰 料金</div>
+                                        <div className="modal-section-content" style={{ color: '#999' }}>
+                                            情報取得中...
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="modal-section">
-                                    <div className="modal-section-title">🕐 営業時間</div>
-                                    <div className="modal-section-content">{selectedFacility.hours}</div>
-                                </div>
-
-                                <div className="modal-section">
-                                    <div className="modal-section-title">💰 料金</div>
-                                    <div className="modal-section-content">{selectedFacility.price}</div>
+                                    <div className="modal-section-title">🖋️ 刺青の条件</div>
+                                    <div className="modal-section-content">{selectedFacility.tattooCondition}</div>
                                 </div>
 
                                 <div className="modal-section">
                                     <div className="modal-section-title">📝 説明</div>
                                     <div className="modal-section-content">{selectedFacility.description}</div>
                                 </div>
+
+                                {selectedFacility.officialUrl && (
+                                    <div className="modal-section">
+                                        <div className="modal-section-title">🌐 公式サイト</div>
+                                        <div className="modal-section-content">
+                                            <a href={selectedFacility.officialUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#4a90e2', textDecoration: 'underline', wordBreak: 'break-all' }}>
+                                                {selectedFacility.officialUrl}
+                                            </a>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="modal-section">
                                     <div className="modal-section-title">🏷️ タグ</div>
@@ -810,9 +1990,6 @@
                 </div>
             );
         }
-
-        // Cloudflare WorkersのURL
-        const WORKER_URL = 'https://tattoo-bath-maps-proxy.hiyume-2.workers.dev';
 
         // Cloudflare Workers経由でGoogle Maps APIを読み込む関数
         // APIキーはサーバー側で管理されるため、クライアントには公開されない

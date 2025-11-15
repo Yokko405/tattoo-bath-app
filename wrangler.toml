@@ -2,6 +2,12 @@ name = "tattoo-bath-maps-proxy"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
+# KV名前空間の定義（施設データを保存）
+[[kv_namespaces]]
+binding = "FACILITIES_KV"
+id = "your_kv_namespace_id"  # 実際のKV名前空間IDに置き換えてください
+# KV名前空間を作成: wrangler kv:namespace create "FACILITIES_KV"
+
 # 環境変数は wrangler secret put で設定
 # wrangler secret put GOOGLE_MAPS_API_KEY
 
